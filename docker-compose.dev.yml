@@ -1,0 +1,54 @@
+# docker-compose.dev.yml
+version: '3.8'
+
+services:
+  next-app:
+    container_name: next-app
+    build:
+      context: .
+      dockerfile: docker/next-app/dev.Dockerfile
+    # Envrionment variables based on the .env file
+    env_file:
+      - dev.env
+    # Environment variables directly in the docker-compose file
+    environment:
+      POSTGRES_ADDR: postgres
+      POSTGRES_DATABASE: next_app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public&connect_timeout=500
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app/next-app
+    restart: always
+    ports:
+      - "3000:3000"
+    networks:
+     - app-tier
+  postgres:
+    image: postgres:15
+    restart: always
+    ports:
+      - "5436:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    networks:
+      - app-tier
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD", "pg_isready", "-U", "postgres", "-d", "next_app"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  pgdata: {}
+networks:
+  app-tier:
+    driver: bridge
